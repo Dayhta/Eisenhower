@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      target: ${TARGET:-development}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+
+  backend:
+    build:
+      context: ./backend
+      target: ${TARGET:-development}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
