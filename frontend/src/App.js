@@ -3,7 +3,8 @@ import "./App.css";
 import TaskForm from "./components/TaskForm";
 import TaskList from "./components/TaskList";
 import EisenhowerMatrix from "./components/EisenhowerMatrix";
-import { taskService } from "./services/api";
+import AuthPanel from "./components/AuthPanel";
+import { taskService, authService } from "./services/api";
 
 function App() {
   const [tasks, setTasks] = useState([]);
@@ -13,9 +14,13 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const isAuthed = () => !!localStorage.getItem('access_token');
+
   useEffect(() => {
-    fetchTasks();
-    fetchMatrixData();
+    if (isAuthed()) {
+      fetchTasks();
+      fetchMatrixData();
+    }
   }, []);
 
   const fetchTasks = async () => {
@@ -75,59 +80,42 @@ function App() {
     );
   }
 
+  if (!isAuthed()) {
+    return (
+      <div className="App">
+        <header className="App-header">
+          <h1>Eisenhower Matrix Todo App</h1>
+          <p>Login or register to manage your tasks</p>
+        </header>
+        <AuthPanel onAuth={() => { fetchTasks(); fetchMatrixData(); }} />
+      </div>
+    );
+  }
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <h1>Eisenhower Matrix Todo App</h1>
-        <p>Prioritize your tasks using the Eisenhower Decision Matrix</p>
-      </header>
-
-      {error && <div className="error-banner">{error}</div>}
-
-      <nav className="tab-nav">
-        <button
-          className={activeTab === "form" ? "active" : ""}
-          onClick={() => setActiveTab("form")}
-        >
-          {editingTask ? "Edit Task" : "Add Task"}
-        </button>
-        <button
-          className={activeTab === "list" ? "active" : ""}
-          onClick={() => setActiveTab("list")}
-        >
-          Task List ({tasks.length})
-        </button>
-        <button
-          className={activeTab === "matrix" ? "active" : ""}
-          onClick={() => setActiveTab("matrix")}
-        >
-          Matrix View
-        </button>
-      </nav>
-
-      <main className="main-content">
-        {activeTab === "form" && (
-          <TaskForm
-            onTaskCreated={handleTaskCreated}
-            editingTask={editingTask}
-            onTaskUpdated={handleTaskUpdated}
-            onCancel={handleCancelEdit}
-          />
-        )}
-
-        {activeTab === "list" && (
-          <TaskList
-            tasks={tasks}
-            onTaskEdit={handleTaskEdit}
-            onTasksUpdated={handleTasksUpdated}
-          />
-        )}
-
-        {activeTab === "matrix" && (
-          <EisenhowerMatrix matrixData={matrixData} />
-        )}
-      </main>
-    </div>
+      <div className="App">
+        <header className="App-header">
+          <h1>Eisenhower Matrix Todo App</h1>
+          <p>Prioritize your tasks using the Eisenhower Decision Matrix</p>
+        </header>
+        {error && <div className="error-banner">{error}</div>}
+        <nav className="tab-nav">
+          <button className={activeTab === "form" ? "active" : ""} onClick={() => setActiveTab("form")}>{editingTask ? "Edit Task" : "Add Task"}</button>
+          <button className={activeTab === "list" ? "active" : ""} onClick={() => setActiveTab("list")}>Task List ({tasks.length})</button>
+          <button className={activeTab === "matrix" ? "active" : ""} onClick={() => setActiveTab("matrix")}>Matrix View</button>
+        </nav>
+        <main className="main-content">
+          {activeTab === "form" && (
+            <TaskForm onTaskCreated={handleTaskCreated} editingTask={editingTask} onTaskUpdated={handleTaskUpdated} onCancel={handleCancelEdit} />
+          )}
+          {activeTab === "list" && (
+            <TaskList tasks={tasks} onTaskEdit={handleTaskEdit} onTasksUpdated={handleTasksUpdated} />
+          )}
+          {activeTab === "matrix" && (
+            <EisenhowerMatrix matrixData={matrixData} />
+          )}
+        </main>
+      </div>
   );
 }
 
