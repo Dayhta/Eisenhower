@@ -8,7 +8,8 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./frontend:/app
+    - ./frontend:/app
+    - /app/node_modules
     environment:
       - NODE_ENV=${NODE_ENV:-development}
 
@@ -20,3 +21,11 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
+    environment:
+      - WEIGHT_URGENCY=0.30
+      - WEIGHT_IMPORTANCE=0.30
+      - WEIGHT_IMPACT=0.20
+      - WEIGHT_VALUE=0.20
+      - EFFORT_PENALTY=0.15
+      - DUE_SOON_DAYS=5
+      - DUE_SOON_MAX_BONUS=0.15
