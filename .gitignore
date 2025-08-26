@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+*.db
+
+# Env
+.env*
+
+# Node
+node_modules/
+build/
+dist/
+.cache/
+
+# Editor
+.vscode/
+.idea/
+.DS_Store
+
+# Docker
+*.log
+
+# Coverage
+htmlcov/
+.coverage*
+
+# Misc
+*.swp
+Eisenhower app.code-workspace
+TODO.md
