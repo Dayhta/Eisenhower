@@ -13,14 +13,20 @@ const AuthPanel = ({ onAuth }) => {
   const handleSubmit = async (e) => {
     e.preventDefault(); setLoading(true); setError('');
     try {
+      let result;
       if (mode === 'register') {
-        await authService.login(email, password); // placeholder for register
+        result = await authService.register(email, password);
+        // After successful registration, automatically log in
+        result = await authService.login(email, password);
+      } else {
+        result = await authService.login(email, password);
       }
-      const { access_token } = await authService.login(email, password);
-      setAccessToken(access_token);
-      onAuth(access_token, email);
-    } catch {
-      setError('Authentication failed');
+      setAccessToken(result.access_token);
+      setEmail('');
+      setPassword('');
+      onAuth(); // Notify parent component of successful authentication
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Authentication failed');
     } finally { setLoading(false); }
   };
 

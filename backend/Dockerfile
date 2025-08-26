@@ -3,7 +3,7 @@ FROM python:3.12-slim AS development
 ENV PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
 WORKDIR /app
 COPY requirements.txt ./requirements.txt
-RUN if [ -f requirements.txt ]; then pip install -r requirements.txt; else pip install fastapi==0.111.0 uvicorn[standard]==0.30.1 sqlalchemy==2.0.0 "pydantic>=2.7,<3.0"; fi
+RUN if [ -f requirements.txt ]; then pip install -r requirements.txt; else pip install fastapi==0.111.0 uvicorn[standard]==0.30.1 sqlalchemy==2.0.0 "pydantic>=2.7,<3.0" "python-jose[cryptography]==3.3.0" "passlib[bcrypt]==1.7.4" "python-multipart>=0.0.7"; fi
 COPY . .
 ## Sanitize any Python source files possibly copied with UTF-16/BOM
 RUN python - <<'PY'
@@ -35,7 +35,7 @@ FROM python:3.12-slim AS staging
 ENV PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
 WORKDIR /app
 COPY . .
-RUN pip install fastapi==0.111.0 uvicorn[standard]==0.30.1 sqlalchemy==2.0.0 "pydantic>=2.7,<3.0"
+RUN pip install fastapi==0.111.0 uvicorn[standard]==0.30.1 sqlalchemy==2.0.0 "pydantic>=2.7,<3.0" "python-jose[cryptography]==3.3.0" "passlib[bcrypt]==1.7.4" "python-multipart>=0.0.7"
 EXPOSE 8000
 CMD ["python","-m","uvicorn","app.main:app","--host","0.0.0.0","--port","8000"]
 
@@ -45,6 +45,6 @@ FROM python:3.12-slim AS production
 ENV PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
 WORKDIR /app
 COPY . .
-RUN pip install fastapi==0.111.0 uvicorn[standard]==0.30.1 sqlalchemy==2.0.0 "pydantic>=2.7,<3.0"
+RUN pip install fastapi==0.111.0 uvicorn[standard]==0.30.1 sqlalchemy==2.0.0 "pydantic>=2.7,<3.0" "python-jose[cryptography]==3.3.0" "passlib[bcrypt]==1.7.4" "python-multipart>=0.0.7"
 EXPOSE 8000
 CMD ["python","-m","uvicorn","app.main:app","--host","0.0.0.0","--port","8000"]

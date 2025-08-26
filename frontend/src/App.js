@@ -13,15 +13,36 @@ function App() {
   const [activeTab, setActiveTab] = useState("list");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [user, setUser] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  const isAuthed = () => !!localStorage.getItem('access_token');
+  const checkAuth = () => {
+    const token = localStorage.getItem('access_token');
+    setIsAuthenticated(!!token);
+    return !!token;
+  };
 
   useEffect(() => {
-    if (isAuthed()) {
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      setIsAuthenticated(true);
+      fetchUserInfo();
       fetchTasks();
       fetchMatrixData();
+    } else {
+      setLoading(false);
     }
   }, []);
+
+  const fetchUserInfo = async () => {
+    try {
+      const userData = await authService.getCurrentUser();
+      setUser(userData);
+    } catch (err) {
+      console.error("Failed to fetch user info:", err);
+      handleLogout();
+    }
+  };
 
   const fetchTasks = async () => {
     try {
@@ -29,7 +50,11 @@ function App() {
       setTasks(data.tasks);
       setError("");
     } catch (err) {
-      setError("Failed to fetch tasks. Please check if the backend is running.");
+      if (err.response?.status === 401) {
+        handleLogout();
+      } else {
+        setError("Failed to fetch tasks. Please check if the backend is running.");
+      }
     } finally {
       setLoading(false);
     }
@@ -40,8 +65,31 @@ function App() {
       const data = await taskService.getMatrixData();
       setMatrixData(data);
     } catch (err) {
-      console.error("Failed to fetch matrix data:", err);
+      if (err.response?.status === 401) {
+        handleLogout();
+      } else {
+        console.error("Failed to fetch matrix data:", err);
+      }
     }
+  };
+
+  const handleLogin = async () => {
+    setIsAuthenticated(true);
+    await fetchUserInfo();
+    await fetchTasks();
+    await fetchMatrixData();
+    setLoading(false);
+  };
+
+  const handleLogout = () => {
+    authService.logout();
+    setIsAuthenticated(false);
+    setUser(null);
+    setTasks([]);
+    setMatrixData(null);
+    setEditingTask(null);
+    setActiveTab("list");
+    setError("");
   };
 
   const handleTaskCreated = (newTask) => {
@@ -75,19 +123,19 @@ function App() {
   if (loading) {
     return (
       <div className="App">
-        <div className="loading">Loading tasks...</div>
+        <div className="loading">Loading...</div>
       </div>
     );
   }
 
-  if (!isAuthed()) {
+  if (!isAuthenticated) {
     return (
       <div className="App">
         <header className="App-header">
           <h1>Eisenhower Matrix Todo App</h1>
           <p>Login or register to manage your tasks</p>
         </header>
-        <AuthPanel onAuth={() => { fetchTasks(); fetchMatrixData(); }} />
+        <AuthPanel onAuth={handleLogin} />
       </div>
     );
   }
@@ -97,6 +145,10 @@ function App() {
         <header className="App-header">
           <h1>Eisenhower Matrix Todo App</h1>
           <p>Prioritize your tasks using the Eisenhower Decision Matrix</p>
+          <div className="user-info">
+            Welcome, {user?.email || 'User'}! 
+            <button className="logout-btn" onClick={handleLogout}>Logout</button>
+          </div>
         </header>
         {error && <div className="error-banner">{error}</div>}
         <nav className="tab-nav">

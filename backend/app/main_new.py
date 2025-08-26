@@ -1,15 +1,12 @@
 """FastAPI application entrypoint for Eisenhower Matrix Todo API with SQLite backend."""
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 import os
 from contextlib import asynccontextmanager
 
-from .routers import tasks, auth
+from .routers import tasks
 from .database import engine
 from .models.task import Base
-from .models.user import User  # Import User model to ensure table creation
-from .security import rate_limit_middleware
 
 
 @asynccontextmanager
@@ -34,41 +31,15 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Security middleware
-@app.middleware("http")
-async def security_headers(request: Request, call_next):
-    """Add security headers to all responses."""
-    response = await call_next(request)
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "DENY"
-    response.headers["X-XSS-Protection"] = "1; mode=block"
-    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
-    return response
-
-@app.middleware("http")
-async def rate_limiting(request: Request, call_next):
-    """Apply rate limiting to API endpoints."""
-    if request.url.path.startswith("/api/tasks"):
-        try:
-            rate_limit_middleware(request)
-        except Exception as e:
-            return JSONResponse(
-                status_code=429,
-                content={"detail": "Rate limit exceeded. Please try again later."}
-            )
-    return await call_next(request)
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # Include routers
-app.include_router(auth.router, prefix="/api")
 app.include_router(tasks.router, prefix="/api")
 
 @app.get("/")

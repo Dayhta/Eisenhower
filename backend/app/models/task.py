@@ -1,5 +1,6 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, Text
+from sqlalchemy import Column, Integer, String, Float, DateTime, Text, ForeignKey
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 from ..database import Base
 from datetime import datetime, timezone
 from ..settings import get_priority_config
@@ -18,8 +19,12 @@ class Task(Base):
     effort = Column(Integer, nullable=True)  # 1-10 scale (higher = more cost)
     due_date = Column(DateTime(timezone=True), nullable=True)
     priority_score = Column(Float, nullable=True)  # 0-100 scaled
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    # Relationship to user
+    owner = relationship("User", back_populates="tasks")
     
     def calculate_priority_score(self):
         """Compute advanced priority score.

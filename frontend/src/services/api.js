@@ -15,6 +15,79 @@ const api = axios.create({
   },
 });
 
+// Add token to requests if available
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('access_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// Handle token expiration and authentication failures
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Token expired or invalid - clear it
+      localStorage.removeItem('access_token');
+      // Don't reload - let the app handle the auth state change
+      // The app will detect missing token and show login form
+    }
+    return Promise.reject(error);
+  }
+);
+
+// Authentication utilities
+export const setAccessToken = (token) => {
+  if (token) {
+    localStorage.setItem('access_token', token);
+  } else {
+    localStorage.removeItem('access_token');
+  }
+};
+
+export const getAccessToken = () => {
+  return localStorage.getItem('access_token');
+};
+
+export const authService = {
+  // Login
+  login: async (email, password) => {
+    // FastAPI OAuth2 expects form data, not JSON
+    const formData = new FormData();
+    formData.append('username', email);
+    formData.append('password', password);
+    
+    const response = await api.post("/auth/login", formData, {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+    });
+    return response.data;
+  },
+
+  // Register
+  register: async (email, password) => {
+    const response = await api.post("/auth/register", {
+      email: email,
+      password: password,
+    });
+    return response.data;
+  },
+
+  // Logout
+  logout: () => {
+    setAccessToken(null);
+  },
+
+  // Get current user info
+  getCurrentUser: async () => {
+    const response = await api.get("/auth/me");
+    return response.data;
+  },
+};
+
 export const taskService = {
   // Get all tasks
   getAllTasks: async () => {

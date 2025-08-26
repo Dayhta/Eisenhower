@@ -4,7 +4,9 @@ from typing import List
 
 from ..database import get_db
 from ..models.task import Task
+from ..models.user import User
 from ..schemas.task import TaskCreate, TaskUpdate, TaskResponse, TaskList
+from ..security import validate_task_input, validate_priority_values, get_current_user
 from sqlalchemy import inspect
 
 def _ensure_new_columns(db: Session):
@@ -28,18 +30,27 @@ router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 
 @router.post("/", response_model=TaskResponse)
-def create_task(task: TaskCreate, db: Session = Depends(get_db)):
+def create_task(task: TaskCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Create a new task"""
     _ensure_new_columns(db)
+    
+    # Validate input for security
+    validate_task_input(task.title, task.description)
+    validate_priority_values(
+        task.urgency, task.importance, 
+        task.impact, task.value_alignment, task.effort
+    )
+    
     db_task = Task(
-        title=task.title,
-        description=task.description,
+        title=task.title.strip(),
+        description=task.description.strip() if task.description else None,
         urgency=task.urgency,
         importance=task.importance,
         impact=task.impact,
         value_alignment=task.value_alignment,
         effort=task.effort,
         due_date=task.due_date,
+        owner_id=current_user.id  # Associate task with current user
     )
     
     # Calculate priority score
@@ -53,17 +64,17 @@ def create_task(task: TaskCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/", response_model=TaskList)
-def get_tasks(db: Session = Depends(get_db)):
+def get_tasks(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Get all tasks ranked by priority score"""
     _ensure_new_columns(db)
-    tasks = db.query(Task).order_by(Task.priority_score.desc()).all()
+    tasks = db.query(Task).filter(Task.owner_id == current_user.id).order_by(Task.priority_score.desc()).all()
     return TaskList(tasks=tasks, total=len(tasks))
 
 
 @router.get("/{task_id}", response_model=TaskResponse)
-def get_task(task_id: int, db: Session = Depends(get_db)):
+def get_task(task_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Get a specific task by ID"""
-    task = db.query(Task).filter(Task.id == task_id).first()
+    task = db.query(Task).filter(Task.id == task_id, Task.owner_id == current_user.id).first()
     if not task:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -73,14 +84,32 @@ def get_task(task_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/{task_id}", response_model=TaskResponse)
-def update_task(task_id: int, task_update: TaskUpdate, db: Session = Depends(get_db)):
+def update_task(task_id: int, task_update: TaskUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Update a task"""
     _ensure_new_columns(db)
-    task = db.query(Task).filter(Task.id == task_id).first()
+    task = db.query(Task).filter(Task.id == task_id, Task.owner_id == current_user.id).first()
     if not task:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Task not found"
+        )
+    
+    # Validate input for security if fields are being updated
+    update_data = task_update.model_dump(exclude_unset=True)
+    if 'title' in update_data or 'description' in update_data:
+        validate_task_input(
+            update_data.get('title', task.title),
+            update_data.get('description', task.description)
+        )
+    
+    priority_fields = ['urgency', 'importance', 'impact', 'value_alignment', 'effort']
+    if any(field in update_data for field in priority_fields):
+        validate_priority_values(
+            update_data.get('urgency', task.urgency),
+            update_data.get('importance', task.importance),
+            update_data.get('impact', task.impact),
+            update_data.get('value_alignment', task.value_alignment),
+            update_data.get('effort', task.effort)
         )
     
     # Update fields if provided
@@ -99,9 +128,9 @@ def update_task(task_id: int, task_update: TaskUpdate, db: Session = Depends(get
 
 
 @router.delete("/{task_id}")
-def delete_task(task_id: int, db: Session = Depends(get_db)):
+def delete_task(task_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Delete a task"""
-    task = db.query(Task).filter(Task.id == task_id).first()
+    task = db.query(Task).filter(Task.id == task_id, Task.owner_id == current_user.id).first()
     if not task:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -115,10 +144,10 @@ def delete_task(task_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/matrix/data", response_model=dict)
-def get_matrix_data(db: Session = Depends(get_db)):
+def get_matrix_data(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Get tasks organized by Eisenhower Matrix quadrants"""
     _ensure_new_columns(db)
-    tasks = db.query(Task).all()
+    tasks = db.query(Task).filter(Task.owner_id == current_user.id).all()
     
     # Organize tasks by quadrants
     # Quadrant 1: Urgent + Important (urgency >= 6, importance >= 6)
